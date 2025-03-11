@@ -15,10 +15,16 @@
 
 ## 1. 安装
 
-使用以下命令安装该库:
+使用以下命令安装该库, 使用该库的基本功能:
 
   ```commandline
   pip install char_art
+  ```
+
+若需要保存生成的字符画和字符视频, 则需要额外安装 **pygame** 库, 或者可以直接用以下命令进行安装
+
+  ```commandline
+  pip install char_art[save]
   ```
 
 ---
@@ -35,17 +41,15 @@
   python -m char_art display 'my_video.mp4' -v -s 80 30
   ```
 
-- 保存生成的字符画
+- 保存生成的字符画 (需要 pygame 库)
   ```commandline
   python -m char_art save 'my_image.jpg' 'save_file.jpg' -s 120 37
   ```
 
-- 保存生成的字符视频
+- 保存生成的字符视频 (需要 pygame 库)
   ```commandline
   python -m char_art save 'my_video.mp4' 'save_file.mp4' -v -s 80 30
   ```
-
-*(保存字符画和字符视频需要额外安装第三方库: pygame)*
 
 ---
 
