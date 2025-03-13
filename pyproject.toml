@@ -4,10 +4,10 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "char_art"
-version = "0.1.0"
+version = "0.1.1"
 description = "方便地制作字符画与字符视频 ~"
 readme = { file = "README.md", content-type = "text/markdown" }
-requires-python = ">=3.6.0"
+requires-python = ">=3.7.0"
 authors = [
     { name = "Liu Wei", email = "23S112099@stu.hit.edu.cn" }
 ]

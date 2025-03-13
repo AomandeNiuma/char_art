@@ -43,9 +43,9 @@ import time
 import cv2
 import numpy as np
 
-# python >= 3.6.0
+# python >= 3.7.0
 
-__version__ = '0.1.0'
+__version__ = '0.1.1'
 
 __all__ = ['CharImage', 'CharVideo']
 
@@ -56,9 +56,35 @@ class Base:
     """内部类, 字符画和字符视频的基类"""
 
     def __init__(self, size, chars):
-        self._size = self._validate_size(size)  # 内部参数, 字符画的尺寸
-        self._chars, self._char_lut = self._validate_chars(chars)  # 内部参数, 字符画使用的字符序列, 以及像素点亮度到字符的查找表
+        self._set_size(size)
+        self._set_chars(chars)
         self._char_img = None  # 内部参数, 字符画或字符视频字符帧缓存, 懒加载
+
+    def _set_size(self, size):
+        """内部函数, 设置 size 参数"""
+        size = tuple(size)
+        w, h = size
+        if not isinstance(w, int) or not isinstance(h, int):
+            raise TypeError('width and height must be a integer')
+        if w <= 0 or h <= 0:
+            raise ValueError('width and height must be > 0')
+        self._size = size  # 内部参数, 字符画的尺寸
+
+    def _set_chars(self, chars):
+        """内部函数, 设置 chars 参数, 和像素点亮度到字符的查找表"""
+        if not isinstance(chars, str):
+            chars = ''.join(chars)
+        if len(chars) <= 1:
+            raise ValueError('length of chars must be > 1')
+        self._chars = chars  # 内部参数, 字符画使用的字符序列
+
+        # 纯 ascii 字符串用字节类型操作查找表, 否则用 unicode 字符类型, 字节类型比字符类型更加高效
+        lut_dtype = '|S1' if chars.isascii() else '<U1'
+        chars_array = np.fromiter(chars, dtype=lut_dtype)
+        char_lut = np.arange(0, 256 * chars_array.size, chars_array.size)
+        char_lut >>= 8
+        char_lut = chars_array[char_lut]
+        self._char_lut = char_lut  # 内部参数, 像素点亮度到字符的查找表
 
     @property
     def size(self):
@@ -67,7 +93,7 @@ class Base:
     @size.setter
     def size(self, value):
         size0 = self._size
-        self._size = self._validate_size(value)
+        self._set_size(value)
         # 参数发生变动后清空字符画缓存
         if self._char_img is not None:
             if self._size != size0:
@@ -80,42 +106,21 @@ class Base:
     @chars.setter
     def chars(self, value):
         chars0 = self._chars
-        self._chars, self._char_lut = self._validate_chars(value)
+        self._set_chars(value)
         # 参数发生变动后清空字符画缓存
         if self._char_img is not None:
             if self._chars != chars0:
                 self._char_img = None
 
-    @staticmethod
-    def _validate_size(size):
-        """内部函数, 验证 size 参数"""
-        size = tuple(size)
-        w, h = size
-        if not isinstance(w, int) or not isinstance(h, int):
-            raise TypeError('width and height must be a integer')
-        if w <= 0 or h <= 0:
-            raise ValueError('width and height must be > 0')
-        return size
-
-    @staticmethod
-    def _validate_chars(chars):
-        """内部函数, 验证 chars 参数, 并给出亮度到字符的查找表"""
-        if not isinstance(chars, str):
-            chars = ''.join(chars)
-        if len(chars) <= 1:
-            raise ValueError('length of chars must be > 1')
-        chars_array = np.fromiter(chars, dtype='<U1')
-        char_lut = np.arange(0, 256 * chars_array.size, chars_array.size)
-        char_lut >>= 8
-        char_lut = chars_array[char_lut]
-        return chars, char_lut
-
-    @staticmethod
-    def _gray2char_img(img, size, char_lut):
+    def _gray2char_img(self, img):
         """内部函数, 将灰度图 (numpy.ndarray) 转化为字符画"""
-        img = cv2.resize(img, size, interpolation=cv2.INTER_AREA)
-        char_pixel = char_lut[img]
-        char_img = '\n'.join(char_pixel.view(f'<U{size[0]}').ravel())
+        img = cv2.resize(img, self._size, interpolation=cv2.INTER_AREA)
+        char_pixel = self._char_lut[img]
+        if char_pixel.dtype == '|S1':
+            char_img = b'\n'.join(char_pixel.view(f'|S{self._size[0]}').ravel())
+            char_img = char_img.decode('ascii')
+        else:  # char_pixel.dtype == '<U1'
+            char_img = '\n'.join(char_pixel.view(f'<U{self._size[0]}').ravel())
         return char_img
 
     @staticmethod
@@ -157,7 +162,7 @@ class CharImage(Base):
 
     def __str__(self):
         if self._char_img is None:
-            self._char_img = self._gray2char_img(self._img, self.size, self._char_lut)
+            self._char_img = self._gray2char_img(self._img)
         return self._char_img
 
     def display(self):
@@ -213,7 +218,7 @@ class CharVideo(Base):
             self._cap.release()
 
         if self._char_img is None:
-            self._char_img = [self._gray2char_img(frame, self._size, self._char_lut) for frame in self._frames]
+            self._char_img = list(map(self._gray2char_img, self._frames))
 
     def get_frame(self, index):
         """
@@ -332,5 +337,5 @@ class CharVideo(Base):
                 frames = self._frames
             else:
                 frames = self._get_frames()
-            char_imgs = (self._gray2char_img(frame, self.size, self._char_lut) for frame in frames)
+            char_imgs = map(self._gray2char_img, frames)
         return char_imgs
