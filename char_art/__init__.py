@@ -78,7 +78,7 @@ class Base:
             raise ValueError('length of chars must be > 1')
         self._chars = chars  # 内部参数, 字符画使用的字符序列
 
-        # 纯 ascii 字符串用字节类型操作查找表, 否则用 unicode 字符类型, 字节类型比字符类型更加高效
+        # 纯 ascii 字符串用字节类型处理查找表, 否则用 unicode 字符类型, 字节类型比字符类型更加高效
         lut_dtype = '|S1' if chars.isascii() else '<U1'
         chars_array = np.fromiter(chars, dtype=lut_dtype)
         char_lut = np.arange(0, 256 * chars_array.size, chars_array.size)
@@ -214,11 +214,11 @@ class CharVideo(Base):
     def load(self):
         """一次性加载并缓存视频的所有帧, 以及对应的字符画"""
         if self._frames is None:
-            self._frames = list(self._get_frames())
+            self._frames = tuple(self._get_frames())
             self._cap.release()
 
         if self._char_img is None:
-            self._char_img = list(map(self._gray2char_img, self._frames))
+            self._char_img = tuple(map(self._gray2char_img, self._frames))
 
     def get_frame(self, index):
         """
@@ -248,8 +248,8 @@ class CharVideo(Base):
             char_img = None
 
         char_frame = object.__new__(CharImage)
-        char_frame._size = self.size
-        char_frame._chars = self.chars
+        char_frame._size = self._size
+        char_frame._chars = self._chars
         char_frame._char_lut = self._char_lut.copy()
         char_frame._img = frame.copy()
         char_frame._char_img = char_img
